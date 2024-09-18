@@ -1,0 +1,3 @@
+position-name	ip-assigned
+#chamber-row-column-id  #ip-address
+#157-001-001	10.9.1.64

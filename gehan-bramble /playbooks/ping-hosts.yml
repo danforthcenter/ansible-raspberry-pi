@@ -1,0 +1,17 @@
+---
+- hosts: gehan-bramble
+  gather_facts: False
+  remote_user: pi
+  ignore_errors: True
+
+  tasks:
+
+    - name: ping hosts
+      ping:
+      register: ping_output
+
+    - name: Send notification message via Slack
+      slack:
+        token: TOKEN
+        msg: '{{ inventory_hostname }} is unresponsive'
+      when: stat_result.stat.exists==True

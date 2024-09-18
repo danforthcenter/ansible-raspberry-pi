@@ -1,0 +1,99 @@
+---
+- hosts: gehan-bramble
+  gather_facts: False
+  remote_user: pi
+  become: yes
+  vars:
+    use_dns: false
+    restart_ssh: false
+    timezone: US/Central
+    timezone_change: false
+    python_script: True
+    temp_script: True
+    pi_id: True
+    install_picam: True
+    install_rsync: True
+    
+  tasks:
+
+    - name: install pi-camera
+      apt: 
+        name: python-picamera
+        force: yes
+      when: install_picam
+
+    - name: install rsync
+      apt:
+        name: rsync
+        force: yes
+      when: install_rsync
+
+    - name: Restart ssh service on all PIs
+      command: systemctl restart ssh.service
+      when: restart_ssh
+      
+    - name: Change timezone
+      shell: "echo {{ timezone }} | tee /etc/timezone > /dev/null"
+      become: yes
+      when: timezone_change
+
+    - name: Reconfigure dpkg
+      command: dpkg-reconfigure -f noninteractive tzdata
+      become: yes
+      when: timezone_change
+
+    - name: Send camera_single.py to the rPIs.
+      copy:
+        src: /home/pi/gehan-bramble/pi-files/camera_single.py
+        dest: /home/pi/camera_single.py
+      become: yes
+      when: python_script
+
+    - name: Send temp_probe.py to the rPIs.
+      copy:
+        src: /home/pi/gehan-bramble/pi-files/temp_probe.py
+        dest: /home/pi/temp_probe.py
+      become: yes
+      when: temp_script
+
+    - name: Send pi-id.txt to the rPIs.
+      copy:
+        src: /home/pi/gehan-bramble/pi-files/pi-id.txt
+        dest: /home/pi/pi-id.txt
+      become: yes
+      when: pi_id
+      
+    - name: Check if camera_single.py exists
+      stat:
+        path: /home/pi/camera_single.py
+      register: cam_single
+      
+    - name: Check if temp_probe.py exists
+      stat:
+        path: /home/pi/temp_probe.py
+      register: temp_probe
+
+    - name: Change camera_single.py attributes from the rPIs.    
+      file:
+        path: /home/pi/camera_single.py
+        owner: pi
+        group: pi
+        mode: "u+x"
+      become: yes
+      when: cam_single.stat.exists
+
+    - name: Change temp_probe.py attributes from the rPIs.    
+      file:
+        path: /home/pi/temp_probe.py
+        owner: pi
+        group: pi
+        mode: "u+x"
+      become: yes
+      when: temp_probe.stat.exists
+      
+  handlers:
+    - name: restart ntp
+      service: name=ntp state=started enabled=yes
+
+    - name: reload ntp
+      service: name=ntp state=reloaded

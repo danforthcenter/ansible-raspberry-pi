@@ -1,0 +1,18 @@
+---
+- hosts: gehan-bramble
+  gather_facts: False
+  remote_user: pi
+  ignore_errors: True
+  
+  tasks:
+
+    - name: Take picture on the raspberry pi.
+      shell: python /home/pi/camera_single.py && echo Success
+      register: command_result
+      changed_when: "'Success' in command_result.stdout"
+
+    - name: Send notification message via Slack
+      slack:
+        token: #SLACK TOKEN
+        msg: '{{ inventory_hostname }} failed to take an image check camera connection'
+      when: "'failed' in command_result.stderr"
