@@ -11,6 +11,8 @@
     python_script: True
     temp_script: True
     pi_id: True
+    mk_imgfolder: True
+    mk_tempfolder: True
     install_picam: True
     install_rsync: True
     
@@ -48,6 +50,18 @@
         dest: /home/pi/camera_single.py
       become: yes
       when: python_script
+
+    - name: Make image folder
+      ansible.builtin.file:
+      path: /home/pi/images
+      state: directory
+      when: mk_imgfolder
+
+    - name: Make temp folder
+      ansible.builtin.file:
+      path: /home/pi/tempdata
+      state: directory
+      when: mk_tempfolder
 
     - name: Send temp_probe.py to the rPIs.
       copy:

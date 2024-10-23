@@ -74,7 +74,8 @@ def make_metadata(ip, position, date, tempusb, tempprobe):
     return metadata
 
 
-# Getting the image directory for all of the rPIs. Should become a passable parameter.
+# Getting the image directory for all of the rPIs. Should become a passable
+# parameter.
 temp_dir = os.path.join("/home", "pi", "tempdata")
 prev_dir = os.getcwd()
 # Switching into the directory where the folders and tarballs exist.
