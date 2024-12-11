@@ -1,6 +1,6 @@
 #!/usr/bin/python
 import time
-import picamera
+import picamera2
 import socket
 import json
 import subprocess
@@ -56,7 +56,7 @@ def get_temp():
 
 
 # Make the medata for the current Raspberry Pi Camera.
-def make_metadata(experiment, ip, camera, position, tempusb, tempprobe):
+def make_metadata(experiment, ip, position, tempusb, tempprobe):
     metadata = {}
     metadata['experiment'] = {
         "experiment": experiment
@@ -71,51 +71,11 @@ def make_metadata(experiment, ip, camera, position, tempusb, tempprobe):
         "temp_probe": tempprobe
     }
 
-    metadata['variable_camera_settings'] = {
-        "zoom": camera.zoom,
-        "vflip": camera.vflip,
-        "hflip": camera.hflip,
-        "still_stats": camera.still_stats,
-        "shutter_speed": camera.shutter_speed,
-        "sharpness": camera.sharpness,
-        "sensor_mode": camera.sensor_mode,
-        "saturation": camera.saturation,
-        "rotation": camera.rotation,
-        "resolution": camera.resolution,
-        "meter_mode": camera.meter_mode,
-        "iso": camera.iso,
-        "image_effect": camera.image_effect,
-        "image_effect_params": camera.image_effect_params,
-        "image_denoise": camera.image_denoise,
-        "framerate": camera.framerate,
-        "analog_gain": camera.analog_gain,
-        "digital_gain": camera.digital_gain,
-        "awb_gains": camera.awb_gains,
-        "awb_mode": camera.awb_mode,
-        "brightness": camera.brightness,
-        "color_effects": camera.color_effects,
-        "contrast": camera.contrast,
-        "crop": camera.crop,
-        "drc_strength": camera.drc_strength,
-        "exposure_compensation": camera.exposure_compensation,
-        "exposure_mode": camera.exposure_mode,
-        "exposure_speed": camera.exposure_speed,
-        "flash_mode": camera.flash_mode,
-        "EXIF information": camera.exif_tags
-    }
-
-    # Setting values that are Fractions to their string representations i.e. 
-    # "3/4" instead of Fraction(3, 4)
-    for key, value in metadata['variable_camera_settings'].items():
-        if isinstance(value, Fraction):
-            metadata['variable_camera_settings'][key] = str(value)
-        elif isinstance(value, tuple) and isinstance(value[0], Fraction):
-            metadata['variable_camera_settings'][key] = [str(x) for x in value]
     return metadata
 
 
 # Here begins the proper process of taking the pictures
-with picamera.PiCamera() as camera:
+with picamera2.Picamera2() as camera:
     # Getting the image directory for all of the rPIs. Should become a 
     # passable parameter.
     image_dir = os.path.join("/home", "pi", "images")
@@ -127,7 +87,7 @@ with picamera.PiCamera() as camera:
         now_utc = datetime.utcnow()
         date = now.strftime("%Y-%m-%d")
         hour = now.strftime("%Y-%m-%d-%H")
-        minute= now.strftime("%Y-%m-%d-%H-%M")
+        minute = now.strftime("%Y-%m-%d-%H-%M")
         # Full path directories.
         date_directory = os.path.join(image_dir, now.strftime("%Y-%m-%d"))
         hour_directory = os.path.join(date_directory, now.strftime("%Y-%m-%d-%H"))
@@ -151,27 +111,24 @@ with picamera.PiCamera() as camera:
         filename = str(ip)+"_pos-"+position+"_"+minute+".jpg"
         print(filename)
         filename = os.path.join(hour_directory, filename)
-        camera.resolution = (3280, 2464)
-        # Set ISO to the desired value
-        camera.iso = 60
-        # Wait for the automatic gain control to settle
-        time.sleep(2)
-        # Now fix the values
-        camera.meter_mode = "matrix"
-        # camera.exposure_speed
-        camera.shutter_speed = 3000 
-        camera.exposure_mode = 'off'
-        g = camera.awb_gains
-        camera.awb_mode = 'off'
-        camera.awb_gains = g
-        camera.capture(filename, quality=100)
+        camera_config = camera.create_still_configuration(main={"size": (3280, 2464)})
+        camera.configure(camera_config)
+        camera.start()
+        camera.set_controls({"ExposureTime": 3000, "AnalogueGain": 0.6})
+        camera.set_controls({"AeEnable": False})
+        camera.set_controls({"AwbEnable": False})
+        camera.set_controls({"ColourGains": (1.5, 1.5)})
+        camera.capture_file(filename)
+        controls = camera.capture_metadata()
+        camera.stop()
         print("Captured %s" % filename)
 
         # Getting all the metadata that will be going into the json file.
         metadata_name = filename[:-4]
         experiment = "EXPERIMENTNAME"
-        metadata = make_metadata(experiment, ip, camera, position, tempusb,
+        metadata = make_metadata(experiment, ip, position, tempusb,
                                  tempprobe)
+        metadata.update({'camera_metadata': controls})
         json_filename = metadata_name + ".json"
         json_filename = os.path.join(hour_directory, json_filename)
         with open(json_filename, "w") as fp:

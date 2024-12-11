@@ -11,16 +11,16 @@
     python_script: True
     temp_script: True
     pi_id: True
-    mk_imgfolder: True
-    mk_tempfolder: True
     install_picam: True
     install_rsync: True
+    image_dir: True
+    temp_dir: True
     
   tasks:
 
-    - name: install pi-camera
+    - name: install pi-camera2
       apt: 
-        name: python-picamera
+        name: python3-picamera2
         force: yes
       when: install_picam
 
@@ -51,18 +51,6 @@
       become: yes
       when: python_script
 
-    - name: Make image folder
-      ansible.builtin.file:
-      path: /home/pi/images
-      state: directory
-      when: mk_imgfolder
-
-    - name: Make temp folder
-      ansible.builtin.file:
-      path: /home/pi/tempdata
-      state: directory
-      when: mk_tempfolder
-
     - name: Send temp_probe.py to the rPIs.
       copy:
         src: /home/pi/gehan-bramble/pi-files/temp_probe.py
@@ -81,6 +69,26 @@
       stat:
         path: /home/pi/camera_single.py
       register: cam_single
+
+    - name: Make image folder
+      ansible.builtin.file:
+        path: /home/pi/images
+        state: directory
+        owner: pi
+        group: pi
+        mode: "u+x"
+      become: yes
+      when: image_dir  
+
+    - name: Make temp folder
+      ansible.builtin.file:
+        path: /home/pi/tempdata
+        state: directory
+        owner: pi
+        group: pi
+        mode: "u+x"
+      become: yes
+      when: temp_dir  
       
     - name: Check if temp_probe.py exists
       stat:
